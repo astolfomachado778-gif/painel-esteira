@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle Esteira ESP32</title>
+    <style>
+        :root {
+            --cor-verde: #2ecc71;
+            --cor-azul: #3498db;
+            --cor-vermelho: #e74c3c;
+            --cor-fundo: #1a1a2e;
+            --cor-card: #16213e;
+            --cor-texto: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--cor-fundo);
+            color: var(--cor-texto);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h1 {
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 40px;
+            color: var(--cor-texto);
+        }
+
+        .visores-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            max-width: 800px;
+            margin-bottom: 50px;
+        }
+
+        .visor-card {
+            background-color: var(--cor-card);
+            border-radius: 20px;
+            padding: 30px;
+            width: 180px;
+            height: 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            border: 3px solid transparent;
+            transition: transform 0.3s;
+            position: relative;
+        }
+
+        .visor-card:hover {
+            transform: translateY(-10px);
+        }
+
+        .visor-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            opacity: 0.7;
+        }
+
+        .visor-numero {
+            font-size: 48px;
+            font-weight: bold;
+        }
+
+        /* Cores Específicas */
+        .visor-verde { border-color: var(--cor-verde); }
+        .visor-verde .visor-numero { color: var(--cor-verde); }
+
+        .visor-azul { border-color: var(--cor-azul); }
+        .visor-azul .visor-numero { color: var(--cor-azul); }
+
+        .visor-vermelho { border-color: var(--cor-vermelho); }
+        .visor-vermelho .visor-numero { color: var(--cor-vermelho); }
+
+        /* Estilo da Velocidade */
+        .visor-velocidade {
+            border-color: #f1c40f; /* Amarelo */
+        }
+        .visor-velocidade .visor-numero {
+            color: #f1c40f;
+        }
+
+        /* Barra de Progresso */
+        .progress-container {
+            width: 100%;
+            height: 10px;
+            background-color: #0f3460;
+            border-radius: 5px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: #f1c40f;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Controles */
+        .controles-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .botoes-velocidade {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .botao {
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            min-width: 150px;
+        }
+
+        .botao:active {
+            transform: scale(0.95);
+        }
+
+        .btn-aumentar {
+            background-color: var(--cor-verde);
+            color: white;
+        }
+
+        .btn-diminuir {
+            background-color: var(--cor-vermelho);
+            color: white;
+        }
+
+        .status {
+            margin-top: 30px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        /* Configuração do endereço do ESP32 */
+        .config-container {
+            margin-top: 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .config-container label {
+            font-size: 13px;
+            opacity: 0.8;
+            text-align: center;
+        }
+
+        .config-input-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .config-input-row input {
+            flex: 1;
+            padding: 10px 18px;
+            border-radius: 50px;
+            border: 1px solid #0f3460;
+            background-color: var(--cor-card);
+            color: var(--cor-texto);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .btn-salvar {
+            background-color: var(--cor-azul);
+            color: white;
+            padding: 10px 25px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 13px;
+        }
+
+        .btn-salvar:active {
+            transform: scale(0.95);
+        }
+
+        /* Aviso de conteúdo misto (HTTPS x HTTP) */
+        .aviso {
+            display: none;
+            margin-top: 20px;
+            padding: 12px 20px;
+            background-color: rgba(241, 196, 15, 0.12);
+            border: 1px solid #f1c40f;
+            border-radius: 10px;
+            font-size: 13px;
+            max-width: 600px;
+            text-align: center;
+            color: #f1c40f;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Painel de Controle da Esteira</h1>
+
+    <div class="visores-container">
+        <!-- Verde -->
+        <div class="visor-card visor-verde">
+            <span class="visor-label">Sensor A</span>
+            <span class="visor-numero" id="valor-verde">0</span>
+        </div>
+
+        <!-- Azul -->
+        <div class="visor-card visor-azul">
+            <span class="visor-label">Sensor B</span>
+            <span class="visor-numero" id="valor-azul">0</span>
+        </div>
+
+        <!-- Vermelho -->
+        <div class="visor-card visor-vermelho">
+            <span class="visor-label">Sensor C</span>
+            <span class="visor-numero" id="valor-vermelho">0</span>
+        </div>
+
+        <!-- Velocidade -->
+        <div class="visor-card visor-velocidade">
+            <span class="visor-label">Velocidade</span>
+            <span class="visor-numero" id="valor-velocidade">0%</span>
+            <div class="progress-container">
+                <div class="progress-bar" id="barra-velocidade"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controles-container">
+        <!-- Botões de Velocidade -->
+        <div class="botoes-velocidade">
+            <button class="botao btn-diminuir" onclick="alterarVelocidade(-5)">- Diminuir</button>
+            <button class="botao btn-aumentar" onclick="alterarVelocidade(5)">+ Aumentar</button>
+        </div>
+    </div>
+
+    <div class="status">Status: <span id="status">Conectando...</span></div>
+
+    <div class="config-container">
+        <label for="esp32-url">Endereço do ESP32 na rede (ex: http://192.168.1.50)</label>
+        <div class="config-input-row">
+            <input type="text" id="esp32-url" placeholder="http://192.168.1.50">
+            <button class="btn-salvar" onclick="salvarEndereco()">Salvar</button>
+        </div>
+    </div>
+
+    <div class="aviso" id="aviso-https">
+        ⚠️ Esta página está em HTTPS e o endereço do ESP32 começa com "http://". O navegador pode bloquear essa conexão por segurança (conteúdo misto). Tente acessar esta página diretamente pelo IP do ESP32 (http://) em vez do GitHub Pages, ou configure HTTPS no ESP32.
+    </div>
+
+    <script>
+        // Variáveis locais
+        let verde = 0;
+        let azul = 0;
+        let vermelho = 0;
+        let velocidade = 0;
+
+        // Endereço base do ESP32 (ex: "http://192.168.1.50").
+        // Fica vazio se a página estiver hospedada no próprio ESP32 (caminhos relativos).
+        let ESP32_BASE = localStorage.getItem('esp32_base') || '';
+
+        // Salva o endereço digitado pelo usuário e tenta conectar de novo
+        function salvarEndereco() {
+            let valor = document.getElementById('esp32-url').value.trim();
+            valor = valor.replace(/\/+$/, ''); // remove "/" no final, se houver
+            ESP32_BASE = valor;
+            localStorage.setItem('esp32_base', ESP32_BASE);
+            document.getElementById('status').innerText = "Endereço salvo. Conectando...";
+            document.getElementById('status').style.color = "#666";
+            tentarConexao();
+        }
+
+        // Tentativa de conectar com ESP32
+        async function tentarConexao() {
+            // Mostra aviso se a página estiver em HTTPS e o ESP32 em HTTP (conteúdo misto)
+            const aviso = document.getElementById('aviso-https');
+            const conteudoMisto = ESP32_BASE.startsWith('http://') && window.location.protocol === 'https:';
+            aviso.style.display = conteudoMisto ? 'block' : 'none';
+
+            try {
+                const response = await fetch(ESP32_BASE + '/status');
+                if (response.ok) {
+                    const data = await response.text();
+                    // Espera-se que o ESP32 retorne: "verde,azul,vermelho,velocidade"
+                    const valores = data.split(',');
+                    
+                    if (valores.length >= 4) {
+                        verde = parseInt(valores[0]);
+                        azul = parseInt(valores[1]);
+                        vermelho = parseInt(valores[2]);
+                        velocidade = parseInt(valores[3]);
+                        
+                        document.getElementById('status').innerText = "Conectado ao ESP32";
+                        document.getElementById('status').style.color = "#2ecc71";
+                    }
+                }
+            } catch (e) {
+                // Modo demonstração
+                document.getElementById('status').innerText = "Modo demonstração (sem ESP32)";
+                document.getElementById('status').style.color = "#f39c12";
+            }
+            atualizarTela();
+        }
+
+        function atualizarTela() {
+            document.getElementById('valor-verde').innerText = verde;
+            document.getElementById('valor-azul').innerText = azul;
+            document.getElementById('valor-vermelho').innerText = vermelho;
+            
+            // Atualiza Velocidade
+            document.getElementById('valor-velocidade').innerText = velocidade + "%";
+            document.getElementById('barra-velocidade').style.width = velocidade + "%";
+        }
+
+        // Função para alterar velocidade
+        async function alterarVelocidade(delta) {
+            try {
+                // Envia para o ESP32
+                await fetch(ESP32_BASE + '/update?val=' + delta + '&tipo=velocidade');
+                await tentarConexao(); // Atualiza a tela
+            } catch (e) {
+                // Se não tiver ESP32, altera localmente
+                velocidade += delta;
+                
+                // Limites de 0 a 100
+                if (velocidade < 0) velocidade = 0;
+                if (velocidade > 100) velocidade = 100;
+                
+                atualizarTela();
+            }
+        }
+
+        // Preenche o campo com o endereço salvo anteriormente
+        document.getElementById('esp32-url').value = ESP32_BASE;
+
+        // Inicialização
+        tentarConexao();
+        setInterval(tentarConexao, 2000);
+    </script>
+
+</body>
+</html>
